@@ -1,5 +1,12 @@
 import { baseApi } from "@/store/api/baseApi";
-import { ApiResponse, RegisterRequest, User } from "./authTypes";
+import {
+  ApiResponse,
+  LoginData,
+  LoginRequest,
+  ProfileResponse,
+  RegisterRequest,
+  User,
+} from "./authTypes";
 
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -11,9 +18,25 @@ export const authApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Auth"],
     }),
+    login: builder.mutation<ApiResponse<LoginData>, LoginRequest>({
+      query: (body) => ({
+        url: "/users/login",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Auth"],
+    }),
+    getProfile: builder.query<ApiResponse<ProfileResponse>, void>({
+      query: () => ({
+        url: "/users/profile-details",
+        method: "GET",
+      }),
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
   }),
 });
 
-export const {
-  useRegisterMutation,
-} = authApi;
+export const { useRegisterMutation, useLoginMutation, useLazyGetProfileQuery } =
+  authApi;
