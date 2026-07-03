@@ -1,20 +1,44 @@
-import ConversationItem from './ConversationItem';
-import NewChatButton from './NewChatButton';
-import SearchConversation from './SearchConversation';
-import SidebarHeader from './SidebarHeader';
+import ConversationItem from "./ConversationItem";
+import NewChatButton from "./NewChatButton";
+import SearchConversation from "./SearchConversation";
+import SidebarHeader from "./SidebarHeader";
 
 // Temporary mock data to visualize the UI
 const DUMMY_CONVERSATIONS = [
-  { id: '1', name: 'Design Team', lastMessage: 'Let me know when the assets are ready.', time: '10:42 AM', unread: 3, isOnline: true, isGroup: true },
-  { id: '2', name: 'Sarah Jenkins', lastMessage: 'Sounds good! See you tomorrow.', time: 'Yesterday', unread: 0, isOnline: false, isGroup: false },
-  { id: '3', name: 'Alex Mercer', lastMessage: 'Can you send over the latest API docs?', time: 'Tuesday', unread: 1, isOnline: true, isGroup: false },
+  {
+    id: "1",
+    name: "Design Team",
+    lastMessage: "Let me know when the assets are ready.",
+    time: "10:42 AM",
+    unread: 3,
+    isOnline: true,
+    isGroup: true,
+  },
+  {
+    id: "2",
+    name: "Sarah Jenkins",
+    lastMessage: "Sounds good! See you tomorrow.",
+    time: "Yesterday",
+    unread: 0,
+    isOnline: false,
+    isGroup: false,
+  },
+  {
+    id: "3",
+    name: "Alex Mercer",
+    lastMessage: "Can you send over the latest API docs?",
+    time: "Tuesday",
+    unread: 1,
+    isOnline: true,
+    isGroup: false,
+  },
 ];
 
 const ChatSidebar = () => {
   return (
-    <aside className="flex flex-col w-full h-full max-w-sm bg-white border-r border-gray-100 dark:bg-gray-900 dark:border-gray-800 transition-colors duration-200">
+    <aside className="flex flex-col w-full h-full md:w-80 lg:w-96 flex-shrink-0 bg-white border-r border-gray-100 dark:bg-gray-900 dark:border-gray-800 transition-colors duration-200">
       <SidebarHeader />
-      
+
       <div className="px-4 py-3 space-y-4">
         <SearchConversation />
         <NewChatButton />

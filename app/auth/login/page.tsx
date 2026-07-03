@@ -16,6 +16,7 @@ import { useAppDispatch } from "@/store/hooks";
 
 import Cookies from "js-cookie";
 import { setCredentials } from "@/features/auth/authSlice";
+import { connectSocket } from "@/services/socket";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,11 +46,21 @@ export default function LoginPage() {
 
       dispatch(setCredentials(response.data));
 
+      const socket = connectSocket(response.data.token);
+
+      socket.on("connect", () => {
+        console.log("✅ Socket Connected:", socket.id);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.log("❌ Socket Error:", err.message);
+      });
+
       toast.success(response.message || "Welcome back!");
 
       reset();
 
-      router.push("/home");
+      router.push("/chat/home");
     } catch (error: any) {
       toast.error(
         error?.data?.message || "Invalid credentials, please try again.",
