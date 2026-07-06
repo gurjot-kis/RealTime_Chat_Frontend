@@ -1,27 +1,75 @@
-// components/chat/body/MessageList.tsx
-import React from 'react';
-import MessageBubble from './MessageBubble';
-import DateDivider from './DateDivider';
+"use client";
 
-// Dummy data for visualization
-const DUMMY_MESSAGES = [
-  { type: 'divider', date: 'Yesterday' },
-  { type: 'message', data: { id: 'm1', text: 'Hey team, how is the new design coming along?', time: '10:30 AM', isOwn: true, status: 'seen' as const } },
-  { type: 'message', data: { id: 'm2', text: 'Almost done! Just finishing up the dark mode colors.', time: '10:35 AM', isOwn: false } },
-  { type: 'divider', date: 'Today' },
-  { type: 'message', data: { id: 'm3', text: 'Great. Let me know when the assets are ready so I can integrate them.', time: '10:40 AM', isOwn: true, status: 'delivered' as const } },
-  { type: 'message', data: { id: 'm4', text: 'Will do. I should have them ready by noon.', time: '10:42 AM', isOwn: false } },
-];
+import { useEffect } from "react";
+
+import { useLazyGetMessagesQuery } from "@/features/chat/chatApi";
+import { setMessages } from "@/features/chat/chatSlice";
+
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+
+import MessageBubble from "./MessageBubble";
+import DateDivider from "./DateDivider";
 
 const MessageList = () => {
+  const dispatch = useAppDispatch();
+
+  const [getMessages] = useLazyGetMessagesQuery();
+
+  const messages = useAppSelector((state) => state.chat.messages);
+
+  const selectedConversation = useAppSelector(
+    (state) => state.chat.selectedConversation
+  );
+
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    const loadMessages = async () => {
+      try {
+        const response = await getMessages({
+          conversationId: selectedConversation._id,
+          page: 1,
+          limit: 20,
+        }).unwrap();
+
+        dispatch(setMessages(response.data.messages));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadMessages();
+  }, [selectedConversation, getMessages, dispatch]);
+
+  if (!selectedConversation) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400">
+        Select a conversation
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col w-full">
-      {DUMMY_MESSAGES.map((item, index) => {
-        if (item.type === 'divider') {
-          return <DateDivider key={`divider-${index}`} date={item.date!} />;
-        }
-        return <MessageBubble key={item.data!.id} message={item.data!} />;
-      })}
+      <DateDivider date="Today" />
+
+      {messages.map((message) => (
+        <MessageBubble
+          key={message._id}
+          message={{
+            id: message._id,
+            text: message.text,
+            time: new Date(message.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isOwn: message.sender._id === loggedInUser?._id,
+            status: "sent",
+          }}
+        />
+      ))}
     </div>
   );
 };

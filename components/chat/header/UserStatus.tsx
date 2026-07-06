@@ -1,5 +1,5 @@
-// components/chat/header/UserStatus.tsx
-import React from "react";
+"use client";
+
 import UserAvatar from "../shared/UserAvatar";
 
 interface UserStatusProps {
@@ -11,11 +11,11 @@ interface UserStatusProps {
   };
 }
 
-const UserStatus: React.FC<UserStatusProps> = ({ user }) => {
+const UserStatus = ({ user }: UserStatusProps) => {
   return (
     <div className="flex items-center space-x-3">
-      {/* Mobile Back Button (Hidden on Desktop) */}
-      <button className="p-2 -ml-2 mr-1 text-gray-500 rounded-full md:hidden hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none">
+      {/* Mobile Back Button */}
+      <button className="p-2 -ml-2 mr-1 text-gray-500 rounded-full md:hidden hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400">
         <svg
           className="w-5 h-5"
           fill="none"
@@ -31,16 +31,25 @@ const UserStatus: React.FC<UserStatusProps> = ({ user }) => {
         </svg>
       </button>
 
-      {/* Avatar Container */}
-      <UserAvatar name="Design Team" isOnline={true} size="lg" />
+      {/* Avatar */}
+      <UserAvatar
+        name={user.name}
+        isOnline={user.isOnline}
+        size="lg"
+      />
 
-      {/* Name and Status */}
+      {/* Name & Status */}
       <div className="flex flex-col cursor-pointer">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
           {user.name}
         </h2>
+
         <span
-          className={`text-xs ${user.status.toLowerCase().includes("typing") ? "text-blue-500 font-medium" : "text-gray-500 dark:text-gray-400"}`}
+          className={`text-xs ${
+            user.status.toLowerCase().includes("typing")
+              ? "text-blue-500 font-medium"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
         >
           {user.status}
         </span>

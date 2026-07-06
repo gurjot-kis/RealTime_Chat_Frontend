@@ -10,7 +10,7 @@ export const connectSocket = (token: string) => {
   if (socket) {
     socket.disconnect();
   }
-
+console.log("Connecting to:", process.env.NEXT_PUBLIC_SOCKET_URL)
   socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
     transports: ["websocket"],
     auth: {
