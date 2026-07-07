@@ -43,8 +43,9 @@ export default function RegisterPage() {
       reset();
 
       router.push("/login");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Registration failed");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Registration failed");
     }
   };
 

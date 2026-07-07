@@ -61,9 +61,10 @@ export default function LoginPage() {
       reset();
 
       router.push("/chat/home");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
       toast.error(
-        error?.data?.message || "Invalid credentials, please try again.",
+        err?.data?.message || "Invalid credentials, please try again.",
       );
     }
   };
@@ -142,7 +143,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-sm text-slate-600">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href="/register"
             className="font-semibold text-blue-600 transition-colors hover:text-blue-500 hover:underline"

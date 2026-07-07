@@ -2,16 +2,44 @@
 import React, { useEffect, useRef } from 'react';
 import MessageList from './MessageList';
 import TypingIndicator from './TypingIndicator';
+import { useAppSelector } from "@/store/hooks";
+import { getSocket } from "@/services/socket";
+
+// Stable reference so the selector never returns a brand-new `{}` on every render,
+// which would trigger unnecessary rerenders (Redux selector equality check).
+const EMPTY_TYPING_MAP: Record<string, string> = {};
 
 const ChatBody = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const selectedConversation = useAppSelector(
+    (state) => state.chat.selectedConversation
+  );
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+  const messages = useAppSelector((state) => state.chat.messages);
+  const typingUsersMap = useAppSelector(
+    (state) => state.chat.typingUsers[selectedConversation?._id || ""] ?? EMPTY_TYPING_MAP
+  );
+
+  const typingUsers = Object.entries(typingUsersMap).filter(([id]) => id !== loggedInUser?._id);
+  const isSomeoneElseTyping = typingUsers.length > 0;
+
+  // Emit mark_as_read when active chat or messages change
+  useEffect(() => {
+    if (selectedConversation?._id) {
+      const socket = getSocket();
+      if (socket) {
+        socket.emit("mark_as_read", { conversationId: selectedConversation._id });
+      }
+    }
+  }, [selectedConversation?._id, messages.length]);
 
   // Auto-scroll to bottom when component mounts or updates
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, []);
+  }, [messages, isSomeoneElseTyping]);
 
   return (
     <div 
@@ -23,10 +51,11 @@ const ChatBody = () => {
         <div className="pt-4">
           <MessageList />
           
-          {/* Toggle this to see the typing animation in action */}
-          <div className="mt-2">
-            <TypingIndicator />
-          </div>
+          {isSomeoneElseTyping && (
+            <div className="mt-2">
+              <TypingIndicator />
+            </div>
+          )}
         </div>
       </div>
     </div>

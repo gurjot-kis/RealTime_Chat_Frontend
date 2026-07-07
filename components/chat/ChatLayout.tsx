@@ -1,36 +1,16 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import ChatSidebar from "./sidebar/ChatSidebar";
 import ChatHeader from "./header/ ChatHeader";
 import ChatBody from "./body/ChatBody";
 import ChatFooter from "./footer/ChatFooter";
-import { useAppDispatch } from "@/store/hooks";
-import { getSocket } from "@/services/socket";
-import { addMessage } from "@/features/chat/chatSlice";
+
+// NOTE: All socket event listeners (presence + chat) are registered in
+// AuthProvider immediately after connectSocket(), so they are always
+// wired up before any component mounts — no race condition.
 
 const ChatLayout = () => {
   const [activeChatId, setActiveChatId] = useState<string | null>("1");
-  const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    const socket = getSocket();
-
-    if (!socket) return;
-
-socket.on("new_message", (response: any) => {
-  console.log("New Message", response);
-
-  const message = response?.message;
-
-  if (!message) return;
-
-  dispatch(addMessage(message));
-});
-
-    return () => {
-      socket.off("new_message");
-    };
-  }, [dispatch]);
 
   return (
     <div className="flex w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">

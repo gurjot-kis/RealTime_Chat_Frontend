@@ -30,6 +30,7 @@ export interface Conversation {
   user: ConversationUser;
 
   lastMessage: LastMessage | null;
+  unreadCount?: number;
 
   createdAt: string;
   updatedAt: string;
