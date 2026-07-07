@@ -4,6 +4,7 @@ export interface ConversationUser {
   phone: string;
   gender: string;
   status: string;
+  avatar?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,8 +15,9 @@ export interface LastMessage {
   sender: string;
   messageType: string;
   text: string;
-  readBy: string[];
-  deliveredTo: string[];
+  mediaUrl?: string;
+  readBy: any[];
+  deliveredTo: any[];
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +50,7 @@ export interface MessageSender {
   _id: string;
   name: string;
   phone: string;
+  avatar?: string;
 }
 
 export interface Message {
@@ -58,9 +61,10 @@ export interface Message {
 
   messageType: string;
   text: string;
+  mediaUrl?: string;
 
-  readBy: string[];
-  deliveredTo: string[];
+  readBy: any[];
+  deliveredTo: any[];
 
   createdAt: string;
   updatedAt: string;
@@ -83,11 +87,31 @@ export interface GetMessagesResponse {
 
 export interface SendMessageRequest {
   conversationId: string;
-  text: string;
+  text?: string;
+  messageType?: string;
+  mediaUrl?: string;
 }
 
 export interface SendMessageResponse {
   success: boolean;
   message: string;
   data: Message;
+}
+
+export interface UploadMediaResponse {
+  success: boolean;
+  message: string;
+  data: {
+    mediaUrl: string;
+    messageType: "image" | "video" | "file";
+  };
+}
+
+export interface UploadMultipleMediaResponse {
+  success: boolean;
+  message: string;
+  data: Array<{
+    mediaUrl: string;
+    messageType: "image" | "video" | "file";
+  }>;
 }

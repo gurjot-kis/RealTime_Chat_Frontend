@@ -28,12 +28,24 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     lg: 'absolute bottom-0 right-0 w-3.5 h-3.5',
   };
 
+  const getMediaUrl = (url?: string) => {
+    if (!url) return "";
+    if (
+      url.startsWith("http://") || 
+      url.startsWith("https://") || 
+      url.startsWith("data:") || 
+      url.startsWith("blob:")
+    ) return url;
+    const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
+    return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+  };
+
   return (
     <div className="relative inline-block flex-shrink-0">
       {/* Avatar Image or Initial Fallback */}
       {imageUrl ? (
         <img
-          src={imageUrl}
+          src={getMediaUrl(imageUrl)}
           alt={name}
           className={`${sizeClasses[size]} rounded-full object-cover border border-gray-100 dark:border-gray-800`}
         />

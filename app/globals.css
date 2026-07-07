@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
-body{
-  background:#f5f5f5;
+body {
+  background: #f5f5f5;
+}
+
+/* Premium WhatsApp-like repeating background pattern */
+.bg-whatsapp-pattern {
+  background-color: #f3f7f4;
+  background-image: 
+    radial-gradient(#e0e7e2 1px, transparent 1px),
+    radial-gradient(#e0e7e2 1px, #f3f7f4 1px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.dark .bg-whatsapp-pattern {
+  background-color: #0b110e;
+  background-image: 
+    radial-gradient(#18221c 1px, transparent 1px),
+    radial-gradient(#18221c 1px, #0b110e 1px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
 }

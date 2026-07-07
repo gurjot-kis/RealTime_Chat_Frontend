@@ -1,9 +1,13 @@
 import { baseApi } from "@/store/api/baseApi";
+import { ApiResponse, User } from "@/features/auth/authTypes";
 import {
+  Conversation,
   GetConversationResponse,
   GetMessagesResponse,
   SendMessageRequest,
   SendMessageResponse,
+  UploadMediaResponse,
+  UploadMultipleMediaResponse,
 } from "./chatTypes";
 
 export const chatApi = baseApi.injectEndpoints({
@@ -42,10 +46,7 @@ export const chatApi = baseApi.injectEndpoints({
     }),
 
     // Send message (REST)
-    sendMessage: builder.mutation<
-      SendMessageResponse,
-      SendMessageRequest
-    >({
+    sendMessage: builder.mutation<SendMessageResponse, SendMessageRequest>({
       query: (body) => ({
         url: "/messages",
         method: "POST",
@@ -60,6 +61,47 @@ export const chatApi = baseApi.injectEndpoints({
         "Conversation",
       ],
     }),
+
+    uploadMedia: builder.mutation<UploadMediaResponse, FormData>({
+      query: (formData) => ({
+        url: "/messages/upload",
+        method: "POST",
+        body: formData,
+      }),
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
+
+    uploadMultipleMedia: builder.mutation<UploadMultipleMediaResponse, FormData>({
+      query: (formData) => ({
+        url: "/messages/upload-multiple",
+        method: "POST",
+        body: formData,
+      }),
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
+
+    getUsers: builder.query<ApiResponse<User[]>, string>({
+      query: (search = "") => `/users${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
+
+    createPrivateConversation: builder.mutation<ApiResponse<Conversation>, { receiverId: string }>({
+      query: (body) => ({
+        url: "/conversations/private",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Conversation"],
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
   }),
 });
 
@@ -67,4 +109,8 @@ export const {
   useGetConversationsQuery,
   useLazyGetMessagesQuery,
   useSendMessageMutation,
+  useUploadMediaMutation,
+  useUploadMultipleMediaMutation,
+  useGetUsersQuery,
+  useCreatePrivateConversationMutation,
 } = chatApi;

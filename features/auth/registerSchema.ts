@@ -23,6 +23,8 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, "Must contain one lowercase letter")
     .regex(/[0-9]/, "Must contain one number")
     .regex(/[^A-Za-z0-9]/, "Must contain one special character"),
+
+  avatar: z.string().optional(),
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;

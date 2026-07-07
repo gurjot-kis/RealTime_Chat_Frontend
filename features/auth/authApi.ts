@@ -35,8 +35,30 @@ export const authApi = baseApi.injectEndpoints({
         requiresAuth: true,
       },
     }),
+    uploadAvatar: builder.mutation<ApiResponse<{ avatarUrl: string }>, FormData>({
+      query: (body) => ({
+        url: "/users/upload-avatar",
+        method: "POST",
+        body,
+      }),
+    }),
+    updateProfile: builder.mutation<ApiResponse<User>, Partial<User>>({
+      query: (body) => ({
+        url: "/users/profile",
+        method: "PUT",
+        body,
+      }),
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
   }),
 });
 
-export const { useRegisterMutation, useLoginMutation, useLazyGetProfileQuery } =
-  authApi;
+export const {
+  useRegisterMutation,
+  useLoginMutation,
+  useLazyGetProfileQuery,
+  useUploadAvatarMutation,
+  useUpdateProfileMutation,
+} = authApi;

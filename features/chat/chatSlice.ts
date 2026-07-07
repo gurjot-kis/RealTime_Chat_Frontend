@@ -6,6 +6,8 @@ interface ChatState {
   messages: Message[];
   typingUsers: Record<string, Record<string, string>>; // conversationId -> { userId: userName }
   onlineUsers: string[]; // list of user IDs
+  hasMore: boolean;
+  currentPage: number;
 }
 
 const initialState: ChatState = {
@@ -13,6 +15,8 @@ const initialState: ChatState = {
   messages: [],
   typingUsers: {},
   onlineUsers: [],
+  hasMore: false,
+  currentPage: 1,
 };
 
 const chatSlice = createSlice({
@@ -29,10 +33,26 @@ const chatSlice = createSlice({
     clearSelectedConversation: (state) => {
       state.selectedConversation = null;
       state.messages = [];
+      state.hasMore = false;
+      state.currentPage = 1;
     },
 
-    setMessages: (state, action: PayloadAction<Message[]>) => {
-      state.messages = action.payload;
+    setMessages: (
+      state,
+      action: PayloadAction<{ messages: Message[]; hasMore: boolean; page: number }>
+    ) => {
+      state.messages = action.payload.messages;
+      state.hasMore = action.payload.hasMore;
+      state.currentPage = action.payload.page;
+    },
+
+    prependMessages: (
+      state,
+      action: PayloadAction<{ messages: Message[]; hasMore: boolean; page: number }>
+    ) => {
+      state.messages = [...action.payload.messages, ...state.messages];
+      state.hasMore = action.payload.hasMore;
+      state.currentPage = action.payload.page;
     },
 
     addMessage: (state, action: PayloadAction<Message>) => {
@@ -44,8 +64,36 @@ const chatSlice = createSlice({
       }
     },
 
+    markMessagesAsRead: (
+      state,
+      action: PayloadAction<{ conversationId: string; userId: string }>
+    ) => {
+      const { conversationId, userId } = action.payload;
+      if (
+        state.selectedConversation &&
+        state.selectedConversation._id === conversationId
+      ) {
+        state.messages = state.messages.map((msg) => {
+          const alreadyRead = msg.readBy.some((r: any) => {
+            const readerId = typeof r === "string" ? r : r.user;
+            return readerId === userId;
+          });
+
+          if (!alreadyRead) {
+            return {
+              ...msg,
+              readBy: [...msg.readBy, { user: userId, readAt: new Date().toISOString() }],
+            };
+          }
+          return msg;
+        });
+      }
+    },
+
     clearMessages: (state) => {
       state.messages = [];
+      state.hasMore = false;
+      state.currentPage = 1;
     },
 
     setUserTyping: (
@@ -82,6 +130,15 @@ const chatSlice = createSlice({
     removeUserOffline: (state, action: PayloadAction<string>) => {
       state.onlineUsers = state.onlineUsers.filter((id) => id !== action.payload);
     },
+
+    resetChatState: (state) => {
+      state.selectedConversation = null;
+      state.messages = [];
+      state.typingUsers = {};
+      state.onlineUsers = [];
+      state.hasMore = false;
+      state.currentPage = 1;
+    },
   },
 });
 
@@ -89,13 +146,16 @@ export const {
   setSelectedConversation,
   clearSelectedConversation,
   setMessages,
+  prependMessages,
   addMessage,
+  markMessagesAsRead,
   clearMessages,
   setUserTyping,
   setUserStopTyping,
   setOnlineUsers,
   addUserOnline,
   removeUserOffline,
+  resetChatState,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

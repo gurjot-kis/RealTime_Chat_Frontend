@@ -3,6 +3,7 @@ export interface RegisterRequest {
   phone: string;
   gender: string;
   password: string;
+  avatar?: string;
 }
 
 export interface LoginRequest {
@@ -21,6 +22,8 @@ export interface User {
   phone: string;
   gender: string;
   status: string;
+  avatar?: string;
+  bio?: string;
   createdAt: string;
   updatedAt: string;
 }
