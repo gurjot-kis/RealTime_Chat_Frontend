@@ -33,7 +33,7 @@ const ChatHeader = () => {
       : "Offline";
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between px-4 h-[72px] bg-white/80 backdrop-blur-md border-b border-gray-100 dark:bg-gray-900/80 dark:border-gray-800/60 transition-colors duration-200 w-full shrink-0 shadow-sm shadow-gray-100/50 dark:shadow-gray-900/50">
+    <header className="sticky top-0 z-20 flex items-center justify-between px-4 h-[72px] bg-white backdrop-blur-md border-b border-gray-100 dark:bg-gray-900 dark:border-gray-800/60 transition-colors duration-200 w-full shrink-0 shadow-sm shadow-gray-100/50 dark:shadow-gray-900/50">
       <UserStatus
         user={{
           name: conversation.user.name,

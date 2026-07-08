@@ -29,12 +29,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const selectedConversation = useAppSelector((state) => state.chat.selectedConversation);
   const selectedConversationRef = useRef(selectedConversation);
+  const user = useAppSelector((state) => state.auth.user);
+  const userRef = useRef(user);
 
   const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const [getProfile] = useLazyGetProfileQuery();
 
@@ -107,8 +113,17 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
                   updatedAt: response.message.updatedAt,
                 };
 
-                // Increment unread count if it's not the selected conversation
-                if (!currentSelected || response.conversationId !== currentSelected._id) {
+                // Increment unread count only if it's not the selected conversation AND it's from someone else
+                const senderId =
+                  typeof response.message.sender === "object"
+                    ? response.message.sender._id
+                    : response.message.sender;
+                const currentUser = userRef.current;
+
+                if (
+                  senderId !== currentUser?._id &&
+                  (!currentSelected || response.conversationId !== currentSelected._id)
+                ) {
                   conv.unreadCount = (conv.unreadCount || 0) + 1;
                 }
 
@@ -128,20 +143,28 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
         socket.on("messages_read", (data: { conversationId: string; userId: string }) => {
           console.log("👁️ Messages read in conversation:", data.conversationId);
+          const currentUser = userRef.current;
           dispatch(
             chatApi.util.updateQueryData("getConversations", undefined, (draft) => {
               const conv = draft.data.find((c) => c._id === data.conversationId);
-              if (conv && conv.lastMessage) {
-                const alreadyRead = conv.lastMessage.readBy.some((r: any) => {
-                  const readerId = typeof r === "string" ? r : r.user;
-                  return readerId === data.userId;
-                });
+              if (conv) {
+                // If the user who read the messages is the logged-in user, clear unread count!
+                if (data.userId === currentUser?._id) {
+                  conv.unreadCount = 0;
+                }
 
-                if (!alreadyRead) {
-                  conv.lastMessage.readBy.push({
-                    user: data.userId,
-                    readAt: new Date().toISOString(),
+                if (conv.lastMessage) {
+                  const alreadyRead = conv.lastMessage.readBy.some((r: any) => {
+                    const readerId = typeof r === "string" ? r : r.user;
+                    return readerId === data.userId;
                   });
+
+                  if (!alreadyRead) {
+                    conv.lastMessage.readBy.push({
+                      user: data.userId,
+                      readAt: new Date().toISOString(),
+                    });
+                  }
                 }
               }
             })

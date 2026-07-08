@@ -50,7 +50,9 @@ const chatSlice = createSlice({
       state,
       action: PayloadAction<{ messages: Message[]; hasMore: boolean; page: number }>
     ) => {
-      state.messages = [...action.payload.messages, ...state.messages];
+      const existingIds = new Set(state.messages.map((m) => m._id));
+      const uniquePrepended = action.payload.messages.filter((m) => !existingIds.has(m._id));
+      state.messages = [...uniquePrepended, ...state.messages];
       state.hasMore = action.payload.hasMore;
       state.currentPage = action.payload.page;
     },
@@ -60,7 +62,10 @@ const chatSlice = createSlice({
         state.selectedConversation &&
         action.payload.conversation === state.selectedConversation._id
       ) {
-        state.messages.push(action.payload);
+        const exists = state.messages.some((msg) => msg._id === action.payload._id);
+        if (!exists) {
+          state.messages.push(action.payload);
+        }
       }
     },
 

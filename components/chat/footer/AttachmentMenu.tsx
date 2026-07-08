@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 
 interface AttachmentMenuProps {
   isOpen: boolean;
@@ -13,6 +13,28 @@ const AttachmentMenu = ({
 }: AttachmentMenuProps) => {
   const documentInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const triggerBtn = document.querySelector('[aria-label="Attach file"]');
+      if (triggerBtn && triggerBtn.contains(event.target as Node)) {
+        return; // Skip if clicking the toggle button itself to avoid double toggle
+      }
+
+      if (isOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -28,9 +50,8 @@ const AttachmentMenu = ({
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-40" onClick={onClose}></div>}
-
       <div
+        ref={menuRef}
         className={`absolute bottom-[72px] left-4 sm:left-6 z-50 w-56 py-2 bg-white/95 backdrop-blur-xl dark:bg-gray-900/95 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100/80 dark:border-gray-700/50 transition-all duration-300 origin-bottom-left ${
           isOpen
             ? "opacity-100 translate-y-0 scale-100"

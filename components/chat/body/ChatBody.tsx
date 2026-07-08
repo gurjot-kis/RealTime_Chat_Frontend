@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import MessageList from "./MessageList";
 import TypingIndicator from "./TypingIndicator";
+import InfiniteScrollContainer from "./InfiniteScrollContainer";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { getSocket } from "@/services/socket";
-import { useLazyGetMessagesQuery } from "@/features/chat/chatApi";
-import { prependMessages } from "@/features/chat/chatSlice";
+import { useLazyGetMessagesQuery, useUploadMultipleMediaMutation, chatApi } from "@/features/chat/chatApi";
+import { prependMessages, addMessage } from "@/features/chat/chatSlice";
+import { Message } from "@/features/chat/chatTypes";
 
 // Stable reference so the selector never returns a brand-new `{}` on every render,
 // which would trigger unnecessary rerenders (Redux selector equality check).
@@ -18,10 +20,6 @@ const ChatBody = () => {
     useLazyGetMessagesQuery();
   const [loadingOlder, setLoadingOlder] = useState(false);
 
-  const scrollHeightBeforeRef = useRef<number>(0);
-  const scrollTopBeforeRef = useRef<number>(0);
-  const prevConversationIdRef = useRef<string | null>(null);
-
   const selectedConversation = useAppSelector(
     (state) => state.chat.selectedConversation,
   );
@@ -32,7 +30,114 @@ const ChatBody = () => {
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMarkerId, setUnreadMarkerId] = useState<string | null>(null);
-  const [showScrollArrow, setShowScrollArrow] = useState(false);
+  
+  const [uploadMultipleMedia, { isLoading: isUploading }] = useUploadMultipleMediaMutation();
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await handleUploadFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleUploadFiles = async (files: FileList) => {
+    if (!conversationId) return;
+
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+      }
+
+      const uploadResponse = await uploadMultipleMedia(formData).unwrap();
+
+      if (uploadResponse.success && uploadResponse.data) {
+        const socket = getSocket();
+        if (!socket) return;
+
+        for (const fileData of uploadResponse.data) {
+          const { mediaUrl, messageType } = fileData;
+          socket.emit(
+            "send_message",
+            {
+              conversationId,
+              text: "",
+              messageType,
+              mediaUrl,
+            },
+            (response: { success: boolean; data?: { message: Message } }) => {
+              if (response.success && response.data?.message) {
+                const sentMessage = response.data.message;
+                dispatch(addMessage(sentMessage));
+
+                // Update last message in sidebar
+                dispatch(
+                  chatApi.util.updateQueryData(
+                    "getConversations",
+                    undefined,
+                    (draft) => {
+                      const conv = draft.data.find((c) => c._id === conversationId);
+                      if (conv) {
+                        conv.lastMessage = {
+                          _id: sentMessage._id,
+                          conversation: sentMessage.conversation,
+                          sender: sentMessage.sender._id,
+                          messageType: sentMessage.messageType,
+                          text: sentMessage.text,
+                          mediaUrl: sentMessage.mediaUrl,
+                          readBy: sentMessage.readBy,
+                          deliveredTo: sentMessage.deliveredTo,
+                          createdAt: sentMessage.createdAt,
+                          updatedAt: sentMessage.updatedAt,
+                        };
+
+                        const index = draft.data.indexOf(conv);
+                        if (index > -1) {
+                          draft.data.splice(index, 1);
+                          draft.data.unshift(conv);
+                        }
+                      }
+                    }
+                  )
+                );
+              }
+            }
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Failed to upload drag & drop files:", error);
+    }
+  };
   const [isFocused, setIsFocused] = useState(true);
   const prevLastMessageIdRef = useRef<string | null>(null);
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,7 +154,6 @@ const ChatBody = () => {
   const isSomeoneElseTyping = typingUsers.length > 0;
 
   const conversationId = selectedConversation?._id;
-  const hasInitialScrolledRef = useRef<boolean>(false);
 
   const startClearUnreadsTimer = () => {
     if (clearTimerRef.current) {
@@ -59,7 +163,7 @@ const ChatBody = () => {
       setUnreadCount(0);
       setUnreadMarkerId(null);
       clearTimerRef.current = null;
-    }, 10000); // 30 seconds display duration
+    }, 5000); 
   };
 
   const handleMarkAsRead = () => {
@@ -86,10 +190,8 @@ const ChatBody = () => {
 
   // Reset initial scroll and unread flags when conversation changes
   useEffect(() => {
-    hasInitialScrolledRef.current = false;
     setUnreadCount(0);
     setUnreadMarkerId(null);
-    setShowScrollArrow(false);
     prevLastMessageIdRef.current = null;
 
     if (clearTimerRef.current) {
@@ -121,7 +223,7 @@ const ChatBody = () => {
         handleMarkAsRead();
       }
     }
-  }, [conversationId, isFocused]);
+  }, [conversationId, isFocused, unreadCount]);
 
   // Listen to new incoming messages to count unreads if out of view or blurred
   useEffect(() => {
@@ -175,173 +277,95 @@ const ChatBody = () => {
     }
   }, [messages, conversationId, loggedInUser?._id]);
 
-  // Adjust scroll position after prepending older messages or on initial mount / new message
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
+  const handleLoadMore = async () => {
+    if (!conversationId || loadingOlder || !hasMore || isFetchingMore) return;
+    setLoadingOlder(true);
 
-    if (loadingOlder) {
-      // Anchoring scroll: calculate height difference and adjust scroll top
-      const heightDifference =
-        container.scrollHeight - scrollHeightBeforeRef.current;
-      container.scrollTop = scrollTopBeforeRef.current + heightDifference;
-      setLoadingOlder(false);
-    } else {
-      // Check if messages in Redux belong to the currently selected conversation
-      const isMessagesForCurrentConversation =
-        messages.length > 0 && messages[0].conversation === conversationId;
-
-      if (!hasInitialScrolledRef.current && isMessagesForCurrentConversation) {
-        container.scrollTop = container.scrollHeight;
-        hasInitialScrolledRef.current = true;
-      } else {
-        // If a new message arrived and user is near bottom, scroll to bottom
-        const isNearBottom =
-          container.scrollHeight -
-            container.scrollTop -
-            container.clientHeight <
-          200;
-        if (isNearBottom) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }
-    }
-  }, [messages, loadingOlder, conversationId]);
-
-  // Auto-scroll to bottom on typing updates if user is near bottom
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      200;
-    if (isNearBottom) {
-      container.scrollTop = container.scrollHeight;
-    }
-  }, [isSomeoneElseTyping]);
-
-  const handleScroll = async () => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    // If user scrolled to the top (scrollTop <= 5) and hasMore is true
-    if (
-      container.scrollTop <= 5 &&
-      hasMore &&
-      !isFetchingMore &&
-      !loadingOlder
-    ) {
-      if (!conversationId) return;
-
-      // Save the current height and scroll position before calling API
-      scrollHeightBeforeRef.current = container.scrollHeight;
-      scrollTopBeforeRef.current = container.scrollTop;
-      setLoadingOlder(true);
-
-      try {
-        const nextPage = currentPage + 1;
-        const response = await getMessages({
+    try {
+      const nextPage = currentPage + 1;
+      // Wait for both the API fetch and a minimum delay of 600ms to allow the dots to animate smoothly
+      const [response] = await Promise.all([
+        getMessages({
           conversationId,
           page: nextPage,
           limit: 20,
-        }).unwrap();
+        }).unwrap(),
+        new Promise((resolve) => setTimeout(resolve, 600)),
+      ]);
 
-        dispatch(
-          prependMessages({
-            messages: response.data.messages,
-            hasMore: response.data.hasMore,
-            page: response.data.page,
-          }),
-        );
-      } catch (error) {
-        console.error("Failed to load older messages:", error);
-        setLoadingOlder(false);
-      }
+      dispatch(
+        prependMessages({
+          messages: response.data.messages,
+          hasMore: response.data.hasMore,
+          page: response.data.page,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to load older messages:", error);
+    } finally {
+      setLoadingOlder(false);
     }
-
-    // Show/hide scroll arrow based on scroll position
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      200;
-    setShowScrollArrow(!isNearBottom);
-
-    // If they scrolled to the bottom, mark messages as read and start clear delay!
-    if (isNearBottom && document.hasFocus()) {
-      handleMarkAsRead();
-    }
-  };
-
-  const scrollToBottom = () => {
-    const container = scrollRef.current;
-    if (container) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-    handleMarkAsRead();
   };
 
   return (
-    <div className="relative flex-1 min-h-0 w-full bg-whatsapp-pattern">
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="w-full h-full px-6 py-6 overflow-y-auto transition-colors duration-200"
-      >
-        <div className="w-full flex flex-col justify-end min-h-full px-2 sm:px-4 md:px-8">
-          {/* A little padding at the top so messages don't stick to the header */}
-          <div className="pt-4">
-            {loadingOlder && (
-              <div className="flex flex-col items-center justify-center py-4 animate-fadeIn">
-                <div className="flex space-x-1.5 items-center justify-center">
-                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-bounce"></div>
-                </div>
-                <span className="text-[11px] font-semibold text-emerald-600/70 mt-2 tracking-wide uppercase">Loading older messages</span>
-              </div>
-            )}
-
-            <MessageList
-              unreadMarkerId={unreadMarkerId}
-              unreadCount={unreadCount}
-            />
-
-            {isSomeoneElseTyping && (
-              <div className="mt-2">
-                <TypingIndicator />
-              </div>
-            )}
+    <div
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="flex-1 flex flex-col min-h-0 relative w-full h-full"
+    >
+      {/* Drag & Drop Visual Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-emerald-500/10 dark:bg-emerald-500/5 backdrop-blur-md border-2 border-dashed border-emerald-500 rounded-3xl m-3 animate-fadeIn select-none pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white/95 dark:bg-gray-900/95 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-gray-800">
+            <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white text-3xl shadow-lg shadow-emerald-500/20 animate-bounce">
+              📤
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Drag & Drop files here
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center max-w-[200px]">
+              Upload images, videos, or documents to send them to this chat
+            </p>
           </div>
         </div>
-      </div>
-
-      {showScrollArrow && (
-        <button
-          onClick={scrollToBottom}
-          className="absolute bottom-6 right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md border border-slate-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700 transition-all duration-200 animate-bounce cursor-pointer group"
-        >
-          <svg
-            className="w-5 h-5 group-hover:translate-y-0.5 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 14l-7 7m0 0l-7-7m7 7V3"
-            />
-          </svg>
-          {unreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-800">
-              {unreadCount}
-            </span>
-          )}
-        </button>
       )}
+
+      {/* Uploading Progress Overlay */}
+      {isUploading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-3xl m-3 select-none pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white dark:bg-gray-950 px-6 py-4 rounded-xl shadow-lg">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+              Sending files...
+            </span>
+          </div>
+        </div>
+      )}
+
+      <InfiniteScrollContainer
+        onScrollTop={handleLoadMore}
+        hasMore={hasMore}
+        isLoadingMore={loadingOlder}
+        messages={messages}
+        conversationId={conversationId}
+        unreadCount={unreadCount}
+        onMarkAsRead={handleMarkAsRead}
+        scrollRef={scrollRef}
+        loggedInUserId={loggedInUser?._id}
+      >
+        <MessageList
+          unreadMarkerId={unreadMarkerId}
+          unreadCount={unreadCount}
+        />
+
+        {isSomeoneElseTyping && (
+          <div className="mt-2">
+            <TypingIndicator />
+          </div>
+        )}
+      </InfiniteScrollContainer>
     </div>
   );
 };

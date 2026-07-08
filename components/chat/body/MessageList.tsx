@@ -91,7 +91,57 @@ const MessageList = ({ unreadMarkerId, unreadCount = 0 }: MessageListProps) => {
     const elements: React.ReactNode[] = [];
     let lastDateLabel = "";
 
+    // Group contiguous media messages of the same sender on the same date within a 2-minute window
+    const processedItems: any[] = [];
+    let currentMediaGroup: any[] = [];
+
+    const flushMediaGroup = () => {
+      if (currentMediaGroup.length === 0) return;
+      if (currentMediaGroup.length === 1) {
+        processedItems.push(currentMediaGroup[0]);
+      } else {
+        const lastMsg = currentMediaGroup[currentMediaGroup.length - 1];
+        processedItems.push({
+          ...lastMsg,
+          messageType: "media_group",
+          mediaItems: currentMediaGroup.map((msg) => ({
+            id: msg._id,
+            mediaUrl: msg.mediaUrl,
+            messageType: msg.messageType,
+            text: msg.text,
+          })),
+        });
+      }
+      currentMediaGroup = [];
+    };
+
     messages.forEach((message) => {
+      const isMedia = message.messageType === "image" || message.messageType === "video";
+      const lastMsgInGroup = currentMediaGroup[currentMediaGroup.length - 1];
+
+      const canGroup =
+        isMedia &&
+        currentMediaGroup.length > 0 &&
+        lastMsgInGroup.sender._id === message.sender._id &&
+        formatDateLabel(lastMsgInGroup.createdAt) === formatDateLabel(message.createdAt) &&
+        Math.abs(new Date(message.createdAt).getTime() - new Date(lastMsgInGroup.createdAt).getTime()) < 2 * 60 * 1000;
+
+      if (isMedia) {
+        if (canGroup) {
+          currentMediaGroup.push(message);
+        } else {
+          flushMediaGroup();
+          currentMediaGroup = [message];
+        }
+      } else {
+        flushMediaGroup();
+        processedItems.push(message);
+      }
+    });
+
+    flushMediaGroup();
+
+    processedItems.forEach((message) => {
       const dateLabel = formatDateLabel(message.createdAt);
 
       if (dateLabel !== lastDateLabel) {
@@ -150,6 +200,7 @@ const MessageList = ({ unreadMarkerId, unreadCount = 0 }: MessageListProps) => {
             mediaUrl: message.mediaUrl,
             senderAvatar: message.sender.avatar || "",
             senderName: message.sender.name,
+            mediaItems: message.mediaItems,
           }}
         />
       );

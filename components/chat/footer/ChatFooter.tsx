@@ -16,12 +16,14 @@ import {
   useUploadMultipleMediaMutation,
 } from "@/features/chat/chatApi";
 import AttachmentMenu from "./AttachmentMenu";
+import PastePreviewModal from "./PastePreviewModal";
 
 const ChatFooter = () => {
   const dispatch = useAppDispatch();
   const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [pasteFiles, setPasteFiles] = useState<File[]>([]);
   const [uploadMultipleMedia, { isLoading: isUploading }] =
     useUploadMultipleMediaMutation();
 
@@ -235,6 +237,116 @@ const ChatFooter = () => {
       setIsAttachmentMenuOpen(false);
     }
   };
+  const handleSelectEmoji = (emoji: string) => {
+    const updatedText = text + emoji;
+    setText(updatedText);
+    handleTyping(updatedText);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboardItems = e.clipboardData.items;
+    const files: File[] = [];
+
+    for (let i = 0; i < clipboardItems.length; i++) {
+      const item = clipboardItems[i];
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (file) {
+          files.push(file);
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      e.preventDefault();
+      setPasteFiles(files);
+    }
+  };
+
+  const handlePasteSend = async (caption: string) => {
+    if (!conversation || pasteFiles.length === 0) return;
+
+    try {
+      // 1. Prepare files for upload
+      const formData = new FormData();
+      for (let i = 0; i < pasteFiles.length; i++) {
+        formData.append("files", pasteFiles[i]);
+      }
+
+      // 2. Upload media
+      const uploadResponse = await uploadMultipleMedia(formData).unwrap();
+
+      if (uploadResponse.success && uploadResponse.data) {
+        const socket = getSocket();
+        if (!socket) return;
+
+        // 3. Emit media messages sequentially
+        for (let i = 0; i < uploadResponse.data.length; i++) {
+          const fileData = uploadResponse.data[i];
+          const { mediaUrl, messageType } = fileData;
+          
+          // Attach caption to the first item
+          const msgCaption = i === 0 ? caption : "";
+
+          socket.emit(
+            "send_message",
+            {
+              conversationId: conversation._id,
+              text: msgCaption,
+              messageType: messageType,
+              mediaUrl: mediaUrl,
+            },
+            (response: { success: boolean; data?: { message: Message } }) => {
+              if (response.success && response.data?.message) {
+                const sentMessage = response.data.message;
+                dispatch(addMessage(sentMessage));
+
+                // Update last message in sidebar
+                dispatch(
+                  chatApi.util.updateQueryData(
+                    "getConversations",
+                    undefined,
+                    (draft) => {
+                      const conv = draft.data.find(
+                        (c) => c._id === conversation._id,
+                      );
+                      if (conv) {
+                        conv.lastMessage = {
+                          _id: sentMessage._id,
+                          conversation: sentMessage.conversation,
+                          sender: sentMessage.sender._id,
+                          messageType: sentMessage.messageType,
+                          text: sentMessage.text,
+                          mediaUrl: sentMessage.mediaUrl,
+                          readBy: sentMessage.readBy,
+                          deliveredTo: sentMessage.deliveredTo,
+                          createdAt: sentMessage.createdAt,
+                          updatedAt: sentMessage.updatedAt,
+                        };
+
+                        // Move conversation to top
+                        const index = draft.data.indexOf(conv);
+                        if (index > -1) {
+                          draft.data.splice(index, 1);
+                          draft.data.unshift(conv);
+                        }
+                      }
+                    },
+                  ),
+                );
+              }
+            },
+          );
+        }
+
+        // Clear files state
+        setPasteFiles([]);
+      }
+    } catch (error) {
+      console.error("Failed to upload pasted media:", error);
+    }
+  };
+
   return (
     <footer className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 sm:py-4 bg-white/90 backdrop-blur-md dark:bg-gray-900/90 border-t border-slate-100 dark:border-gray-800/60 w-full shrink-0 z-20 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)] dark:shadow-none transition-colors duration-200">
       <AttachmentMenu
@@ -242,6 +354,7 @@ const ChatFooter = () => {
         onClose={() => setIsAttachmentMenuOpen(false)}
         onFileSelect={handleFileSelect}
       />
+      <EmojiPicker onSelectEmoji={handleSelectEmoji} disabled={isUploading} />
       <AttachmentButton
         isOpen={isAttachmentMenuOpen}
         onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
@@ -255,14 +368,24 @@ const ChatFooter = () => {
           handleTyping(newText);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
             handleSend();
           }
         }}
+        onPaste={handlePaste}
         disabled={isUploading}
       />
-      <EmojiPicker />
       <SendButton disabled={!text.trim() || isUploading} onClick={handleSend} />
+
+      {pasteFiles.length > 0 && (
+        <PastePreviewModal
+          files={pasteFiles}
+          onClose={() => setPasteFiles([])}
+          onSend={handlePasteSend}
+          isUploading={isUploading}
+        />
+      )}
     </footer>
   );
 };
