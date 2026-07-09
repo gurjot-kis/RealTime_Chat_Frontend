@@ -69,7 +69,7 @@ const SidebarHeader = () => {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors duration-150"
+          className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors duration-150 cursor-pointer"
         >
           {user && (
             <UserAvatar name={user.name} imageUrl={user.avatar} size="sm" />

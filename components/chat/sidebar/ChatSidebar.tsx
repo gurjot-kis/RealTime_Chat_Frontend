@@ -89,7 +89,7 @@ const ChatSidebar = () => {
   const handleSelectUser = async (user: User) => {
     try {
       // If conversation already exists with this user, select it immediately
-      const existingConv = data?.data?.find((c) => c.user._id === user._id);
+      const existingConv = data?.data?.find((c) => c.user?._id === user._id);
       if (existingConv) {
         dispatch(setSelectedConversation(existingConv));
         localStorage.setItem("activeConversationId", existingConv._id);

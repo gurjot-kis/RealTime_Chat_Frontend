@@ -12,14 +12,17 @@ interface SelectProps
   label: string;
   error?: string;
   options: Option[];
+  hasRequired?:boolean;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, options, error, ...props }, ref) => {
+  ({ label, options, error, hasRequired, ...props }, ref) => {
     return (
       <div className="mb-4">
         <label className="mb-2 block text-sm font-medium text-gray-700">
-          {label}
+          {label} {hasRequired && (
+            <span className=" text-red-600">*</span>
+          )}
         </label>
 
         <select

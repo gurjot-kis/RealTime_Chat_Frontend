@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { setReplyingToMessage } from "@/features/chat/chatSlice";
 import SeenIndicator from "./SeenIndicator";
 
 interface MessageBubbleProps {
@@ -14,6 +15,12 @@ interface MessageBubbleProps {
     mediaUrl?: string;
     senderAvatar?: string;
     senderName?: string;
+    parentMessage?: {
+      _id: string;
+      text: string;
+      messageType: string;
+      senderName: string;
+    };
     mediaItems?: {
       id: string;
       mediaUrl: string;
@@ -24,7 +31,10 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
-  const { isOwn, text, time, status, messageType = "text", mediaUrl, mediaItems } = message;
+  const { id, isOwn, text, time, status, messageType = "text", mediaUrl, mediaItems, parentMessage } = message;
+  const dispatch = useAppDispatch();
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+  
   const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -134,109 +144,152 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     }
   };
 
+  const handleScrollToParent = (parentId: string) => {
+    const el = document.getElementById(`message-${parentId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("highlight-flash");
+      setTimeout(() => {
+        el.classList.remove("highlight-flash");
+      }, 1500);
+    }
+  };
+
+  const renderReplyPreview = (parent: {
+    _id: string;
+    text: string;
+    messageType: string;
+    senderName: string;
+  }) => {
+    const displaySnippet = () => {
+      if (parent.messageType === "image") return "📷 Photo";
+      if (parent.messageType === "video") return "🎥 Video";
+      if (parent.messageType === "file") return "📄 File";
+      return parent.text;
+    };
+
+    return (
+      <div
+        onClick={() => handleScrollToParent(parent._id)}
+        className={`mb-2 p-2 rounded-lg text-left text-xs border-l-4 cursor-pointer select-none bg-black/10 dark:bg-white/5 hover:bg-black/15 dark:hover:bg-white/10 transition-colors flex flex-col gap-0.5 ${
+          isOwn
+            ? "border-emerald-300 text-emerald-100/90"
+            : "border-emerald-500 text-gray-600 dark:text-gray-300"
+        }`}
+      >
+        <span className={`font-semibold ${isOwn ? "text-white" : "text-emerald-600 dark:text-emerald-400"}`}>
+          {parent.senderName}
+        </span>
+        <span className="truncate max-w-[200px] sm:max-w-[280px]">
+          {displaySnippet()}
+        </span>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (messageType) {
       case "media_group": {
         if (!mediaItems || mediaItems.length === 0) return null;
 
-        const count = mediaItems.length;
-        const visibleItems = mediaItems.slice(0, 4);
-        const extraCount = count - 4;
-
-        const getGridClass = () => {
-          return "grid grid-cols-2 gap-1.5 max-w-[280px] sm:max-w-[320px]";
-        };
-
-        const getItemWrapperClass = (index: number) => {
-          if (count === 3 && index === 0) {
-            return "col-span-2 aspect-video w-full relative overflow-hidden rounded-xl group";
-          }
-          return "col-span-1 aspect-square w-full relative overflow-hidden rounded-xl group";
-        };
-
         return (
           <div className="flex flex-col gap-2">
-            <div className={getGridClass()}>
-              {visibleItems.map((item, idx) => {
-                const isLast = idx === 3 && extraCount > 0;
+            <div className={`grid gap-1 max-w-[280px] sm:max-w-[340px] ${
+              mediaItems.length === 2 ? "grid-cols-2" :
+              mediaItems.length === 3 ? "grid-cols-3" :
+              "grid-cols-2"
+            }`}>
+              {mediaItems.slice(0, 4).map((item, idx) => {
+                const isOverLimit = mediaItems.length > 4 && idx === 3;
                 return (
-                  <div 
-                    key={item.id} 
-                    className={getItemWrapperClass(idx)}
+                  <div
+                    key={item.id}
                     onClick={() => setActiveLightboxIndex(idx)}
+                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer bg-slate-100 dark:bg-gray-800 transition-all hover:opacity-90 group/media"
                   >
                     {item.messageType === "image" ? (
                       <img
                         src={getMediaUrl(item.mediaUrl)}
-                        alt="Grid media attachment"
-                        className="w-full h-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity duration-200"
+                        alt="Media upload"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover/media:scale-105"
                       />
                     ) : (
-                      <div className="relative w-full h-full bg-slate-900 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden">
+                      <div className="relative w-full h-full">
                         <video
                           src={getMediaUrl(item.mediaUrl)}
-                          className="w-full h-full object-cover rounded-xl"
+                          className="w-full h-full object-cover"
                           muted
+                          playsInline
                         />
-                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center text-white text-lg transition-transform group-hover:scale-110">
-                            ▶
-                          </div>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                          <svg className="w-8 h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
                         </div>
                       </div>
                     )}
-
-                    {isLast && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-lg font-bold cursor-pointer backdrop-blur-[2px]">
-                        +{extraCount}
+                    {isOverLimit && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center text-white font-bold text-lg select-none">
+                        +{mediaItems.length - 3}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-            {text && <p className="mt-1 leading-relaxed whitespace-pre-wrap px-2 pb-1">{renderTextWithLinks(text, isOwn)}</p>}
+            {text && <p className="mt-1 leading-relaxed whitespace-pre-wrap px-1">{renderTextWithLinks(text, isOwn)}</p>}
           </div>
         );
       }
       case "image":
         return (
-          <div className="flex flex-col gap-1.5">
-            <img
-              src={getMediaUrl(mediaUrl)}
-              alt="Image attachment"
-              className="max-w-full max-h-64 object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity duration-200"
+          <div className="flex flex-col">
+            <div 
               onClick={() => setActiveLightboxIndex(0)}
-            />
-            {text && <p className="mt-1 leading-relaxed whitespace-pre-wrap px-2 pb-1">{renderTextWithLinks(text, isOwn)}</p>}
+              className="relative max-w-[280px] sm:max-w-[340px] aspect-auto max-h-[300px] rounded-xl overflow-hidden cursor-pointer bg-slate-100 dark:bg-gray-800 hover:opacity-95 transition-opacity"
+            >
+              <img
+                src={getMediaUrl(mediaUrl)}
+                alt="Image attachment"
+                className="w-full h-full object-contain max-h-[300px] rounded-xl"
+              />
+            </div>
+            {text && <p className="mt-2 leading-relaxed whitespace-pre-wrap px-1">{renderTextWithLinks(text, isOwn)}</p>}
           </div>
         );
       case "video":
         return (
-          <div className="flex flex-col gap-1.5">
-            <div className="relative cursor-pointer group" onClick={() => setActiveLightboxIndex(0)}>
+          <div className="flex flex-col">
+            <div 
+              onClick={() => setActiveLightboxIndex(0)}
+              className="relative max-w-[280px] sm:max-w-[340px] max-h-[300px] rounded-xl overflow-hidden cursor-pointer bg-slate-100 dark:bg-gray-800 hover:opacity-95 transition-opacity"
+            >
               <video
                 src={getMediaUrl(mediaUrl)}
-                className="max-w-full max-h-64 rounded-xl shadow-sm object-cover"
+                className="w-full max-h-[300px] rounded-xl"
+                muted
+                playsInline
               />
-              <div className="absolute inset-0 bg-black/20 rounded-xl flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md border border-white/50 flex items-center justify-center text-white text-xl transition-transform group-hover:scale-110">
-                  ▶
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 shadow-lg">
+                  <svg className="w-6 h-6 fill-current ml-0.5" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
                 </div>
               </div>
             </div>
-            {text && <p className="mt-1 leading-relaxed whitespace-pre-wrap px-2 pb-1">{renderTextWithLinks(text, isOwn)}</p>}
+            {text && <p className="mt-2 leading-relaxed whitespace-pre-wrap px-1">{renderTextWithLinks(text, isOwn)}</p>}
           </div>
         );
       case "file":
         return (
-          <div className="flex flex-col gap-1.5 min-w-[220px] max-w-sm">
+          <div className="flex flex-col max-w-[280px] sm:max-w-[340px]">
             <a
               href={getMediaUrl(mediaUrl)}
               download
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex items-center gap-3 p-3 transition-colors duration-200 rounded-xl border ${
+              className={`flex items-center p-3 rounded-xl border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                 isOwn
                   ? "bg-blue-700/50 border-blue-500/30 hover:bg-blue-700/70 text-white"
                   : "bg-gray-50 border-gray-100 hover:bg-gray-100 text-gray-900 dark:bg-gray-900/50 dark:border-gray-800 dark:hover:bg-gray-800/80"
@@ -269,7 +322,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     }
   };
 
-  const loggedInUser = useAppSelector((state) => state.auth.user);
   const useCompactPadding = (messageType === "image" || messageType === "video" || messageType === "media_group") && !text;
 
   const renderLightbox = () => {
@@ -361,11 +413,43 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     return createPortal(lightboxContent, document.body);
   };
 
+  const handleReplyClick = () => {
+    dispatch(
+      setReplyingToMessage({
+        _id: id,
+        text: text || "",
+        messageType,
+        mediaUrl,
+        sender: {
+          _id: isOwn ? loggedInUser?._id || "" : "",
+          name: isOwn ? loggedInUser?.name || "Me" : message.senderName || "User",
+          phone: "",
+        },
+        readBy: [],
+        deliveredTo: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any)
+    );
+  };
+
   if (isOwn) {
     return (
       <>
-        <div className="flex w-full mb-2 justify-end items-end animate-fadeIn">
-          <div className="flex flex-col max-w-[75%] sm:max-w-[60%] items-end">
+        <div className="flex w-full mb-2 justify-end items-center animate-fadeIn group">
+          {/* Reply Button on Hover */}
+          <button
+            type="button"
+            onClick={handleReplyClick}
+            className="mr-3 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center"
+            title="Reply"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+
+          <div id={`message-${id}`} className="flex flex-col max-w-[75%] sm:max-w-[60%] items-end rounded-2xl">
             {/* Message Box */}
             <div 
               className={`relative rounded-2xl shadow-sm overflow-hidden
@@ -373,6 +457,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 bg-gradient-to-br from-emerald-600 to-teal-500 text-white dark:from-[#0b382c] dark:to-[#022b22] dark:text-emerald-100 dark:border dark:border-emerald-800/30 rounded-br-none shadow-md shadow-emerald-500/5 dark:shadow-none
               `}
             >
+              {parentMessage && renderReplyPreview(parentMessage)}
               {renderContent()}
             </div>
 
@@ -392,8 +477,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   return (
     <>
-      <div className="flex w-full mb-2 justify-start items-end animate-fadeIn">
-        <div className="flex flex-col max-w-[75%] sm:max-w-[60%] items-start">
+      <div className="flex w-full mb-2 justify-start items-center animate-fadeIn group">
+        <div id={`message-${id}`} className="flex flex-col max-w-[75%] sm:max-w-[60%] items-start rounded-2xl">
           {/* Message Box */}
           <div 
             className={`relative rounded-2xl shadow-sm overflow-hidden
@@ -401,6 +486,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               bg-white border border-slate-100 text-gray-900 rounded-bl-none dark:bg-gray-800 dark:border-gray-700/50 dark:text-gray-100 shadow-sm
             `}
           >
+            {parentMessage && renderReplyPreview(parentMessage)}
             {renderContent()}
           </div>
 
@@ -411,6 +497,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             </span>
           </div>
         </div>
+
+        {/* Reply Button on Hover */}
+        <button
+          type="button"
+          onClick={handleReplyClick}
+          className="ml-3 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center"
+          title="Reply"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        </button>
       </div>
       {renderLightbox()}
     </>

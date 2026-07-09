@@ -102,6 +102,17 @@ export const chatApi = baseApi.injectEndpoints({
         requiresAuth: true,
       },
     }),
+
+    deleteConversation: builder.mutation<{ success: boolean; message: string }, string>({
+      query: (conversationId) => ({
+        url: `/conversations/${conversationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Conversation"],
+      extraOptions: {
+        requiresAuth: true,
+      },
+    }),
   }),
 });
 
@@ -113,4 +124,5 @@ export const {
   useUploadMultipleMediaMutation,
   useGetUsersQuery,
   useCreatePrivateConversationMutation,
+  useDeleteConversationMutation,
 } = chatApi;

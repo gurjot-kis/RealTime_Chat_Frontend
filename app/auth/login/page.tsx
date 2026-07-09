@@ -121,14 +121,14 @@ export default function LoginPage() {
                 )}
               </button>
             </div>
-            <div className="flex justify-end pt-1">
+            {/* <div className="flex justify-end pt-1">
               <Link
                 href="/forgot-password"
                 className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-500 hover:underline"
               >
                 Forgot password?
               </Link>
-            </div>
+            </div> */}
           </div>
 
           <div className="pt-4">
@@ -145,7 +145,7 @@ export default function LoginPage() {
         <p className="mt-8 text-center text-sm text-slate-600">
           Don&apos;t have an account?{" "}
           <Link
-            href="/register"
+            href="/auth/register"
             className="font-semibold text-blue-600 transition-colors hover:text-blue-500 hover:underline"
           >
             Create one

@@ -100,10 +100,10 @@ export default function EmojiPicker({ onSelectEmoji, disabled = false }: EmojiPi
       {/* Popover */}
       {isOpen && (
         <div
-          className="absolute bottom-14 left-0 sm:left-[-10px] z-50 w-72 sm:w-80 h-96 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)] border border-gray-150 dark:border-gray-800 flex flex-col overflow-hidden animate-scaleIn origin-bottom-left"
+          className="absolute bottom-14 left-0 sm:left-[-10px] z-50 w-72 sm:w-80 h-96 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)] border border-gray-100/80 dark:border-gray-700/50 flex flex-col overflow-hidden animate-scaleIn origin-bottom-left"
         >
           {/* Header tabs */}
-          <div className="flex border-b border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 px-2 py-1.5 shrink-0 select-none overflow-x-auto [scrollbar-width:none]">
+          <div className="flex border-b border-gray-100/80 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-900/50 px-2 py-1.5 shrink-0 select-none overflow-x-auto [scrollbar-width:none]">
             {EMOJI_CATEGORIES.map((cat, idx) => (
               <button
                 key={cat.title}

@@ -201,6 +201,12 @@ const MessageList = ({ unreadMarkerId, unreadCount = 0 }: MessageListProps) => {
             senderAvatar: message.sender.avatar || "",
             senderName: message.sender.name,
             mediaItems: message.mediaItems,
+            parentMessage: message.parentMessage ? {
+              _id: message.parentMessage._id,
+              text: message.parentMessage.text,
+              messageType: message.parentMessage.messageType,
+              senderName: message.parentMessage.sender?.name || "User",
+            } : undefined,
           }}
         />
       );

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+  <rect width="220" height="220" fill="#0e1512"/>
+  <g fill="none" stroke="#2a3d30" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
+
+    <!-- chat bubble -->
+    <g transform="translate(15,15)">
+      <path d="M0 0h26a7 7 0 0 1 7 7v14a7 7 0 0 1-7 7H10l-7 7v-7H0a0 0 0 0 1 0 0V7a7 7 0 0 1 0-7z"/>
+    </g>
+
+    <!-- double checkmark -->
+    <g transform="translate(90,20)">
+      <path d="M0 5l3 3 7-8"/>
+      <path d="M7 5l3 3 7-8"/>
+    </g>
+
+    <!-- camera -->
+    <g transform="translate(150,15)">
+      <rect x="0" y="4" width="26" height="18" rx="3"/>
+      <path d="M8 4l3-4h6l3 4"/>
+      <circle cx="13" cy="13" r="6"/>
+    </g>
+
+    <!-- heart -->
+    <g transform="translate(20,75)">
+      <path d="M11 20C3 13 0 9 0 5.5A5.5 5.5 0 0 1 11 3A5.5 5.5 0 0 1 22 5.5C22 9 19 13 11 20z"/>
+    </g>
+
+    <!-- paper plane -->
+    <g transform="translate(85,80)">
+      <path d="M0 10L26 0 16 26 11 15z"/>
+      <path d="M11 15L26 0"/>
+    </g>
+
+    <!-- mic -->
+    <g transform="translate(155,75)">
+      <rect x="6" y="0" width="8" height="15" rx="4"/>
+      <path d="M0 10a10 10 0 0 0 20 0"/>
+      <line x1="10" y1="20" x2="10" y2="25"/>
+    </g>
+
+    <!-- clock -->
+    <g transform="translate(15,140)">
+      <circle cx="10" cy="10" r="10"/>
+      <path d="M10 4v6l5 4"/>
+    </g>
+
+    <!-- star -->
+    <g transform="translate(75,145)">
+      <path d="M11 0l3 7 7.5.7-5.7 5 1.7 7.3L11 16.5 4.5 20l1.7-7.3L0.5 7.7 8 7z"/>
+    </g>
+
+    <!-- smiley -->
+    <g transform="translate(145,140)">
+      <circle cx="10" cy="10" r="10"/>
+      <circle cx="6.5" cy="8" r="1.2" fill="#2a3d30"/>
+      <circle cx="13.5" cy="8" r="1.2" fill="#2a3d30"/>
+      <path d="M5 13a6 6 0 0 0 10 0"/>
+    </g>
+
+    <!-- music note -->
+    <g transform="translate(35,190)">
+      <circle cx="3" cy="16" r="3"/>
+      <path d="M6 16V2l14-2v13"/>
+      <circle cx="17" cy="13" r="3"/>
+    </g>
+
+    <!-- paperclip -->
+    <g transform="translate(110,190)">
+      <path d="M4 0v16a4 4 0 0 0 8 0V5a2.5 2.5 0 0 0-5 0v10"/>
+    </g>
+
+    <!-- attachment/bookmark -->
+    <g transform="translate(165,190)">
+      <path d="M0 0h16v20l-8-6-8 6z"/>
+    </g>
+
+  </g>
+</svg>

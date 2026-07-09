@@ -26,6 +26,7 @@ export interface User {
   bio?: string;
   createdAt: string;
   updatedAt: string;
+  token: string;
 }
 
 export interface ApiResponse<T> {

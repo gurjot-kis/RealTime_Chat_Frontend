@@ -57,11 +57,11 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4 animate-fadeIn">
       <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 dark:bg-gray-900 dark:border-gray-800 flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 bg-gradient-to-r from-emerald-600 to-teal-500">
+        <div className="flex items-center justify-between px-6 py-5 bg-linear-to-r from-emerald-600 to-teal-500">
           <h2 className="text-lg font-bold text-white">Start New Chat</h2>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-full text-white/90 hover:bg-white/15 transition-colors duration-150"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-white/90 hover:bg-white/15 transition-colors duration-150 cursor-pointer"
             aria-label="Close"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -88,7 +88,7 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* User List */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[300px]">
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-75">
             {isLoading || isCreating ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2 text-sm text-gray-400">
                 <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -99,7 +99,7 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose }) => {
                 <div
                   key={user._id}
                   onClick={() => handleSelectUser(user._id)}
-                  className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50/60 dark:hover:from-emerald-500/10 dark:hover:to-teal-500/[0.04] cursor-pointer transition-colors duration-150"
+                  className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-linear-to-r hover:from-emerald-50 hover:to-teal-50/60 dark:hover:from-emerald-500/10 dark:hover:to-teal-500/4 cursor-pointer transition-colors duration-150"
                 >
                   <UserAvatar name={user.name} imageUrl={user.avatar} size="md" />
                   <div className="flex-1 min-w-0">

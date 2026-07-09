@@ -63,6 +63,8 @@ export interface Message {
   text: string;
   mediaUrl?: string;
 
+  parentMessage?: Message | null;
+
   readBy: any[];
   deliveredTo: any[];
 
@@ -90,6 +92,7 @@ export interface SendMessageRequest {
   text?: string;
   messageType?: string;
   mediaUrl?: string;
+  parentMessageId?: string;
 }
 
 export interface SendMessageResponse {

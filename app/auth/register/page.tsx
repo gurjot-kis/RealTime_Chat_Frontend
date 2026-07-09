@@ -11,18 +11,27 @@ import Input from "@/components/common/Input";
 import Select from "@/components/common/Select";
 import Button from "@/components/common/Button";
 
-import { useRegisterMutation, useUploadAvatarMutation } from "@/features/auth/authApi";
+import {
+  useRegisterMutation,
+  useUploadAvatarMutation,
+} from "@/features/auth/authApi";
 import {
   registerSchema,
   RegisterFormData,
 } from "@/features/auth/registerSchema";
 import { useState } from "react";
+import Cookies from "js-cookie";
+import { useAppDispatch } from "@/store/hooks";
+import { setCredentials } from "@/features/auth/authSlice";
+import { connectSocket } from "@/services/socket";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   const [registerUser, { isLoading }] = useRegisterMutation();
-  const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadAvatarMutation();
+  const [uploadAvatar, { isLoading: isUploadingAvatar }] =
+    useUploadAvatarMutation();
 
   const [showPassword, setShowPassword] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -62,13 +71,30 @@ export default function RegisterPage() {
         avatar: avatarUrl || undefined,
       }).unwrap();
 
-      toast.success(response.message);
+      Cookies.set("token", response.data.token, {
+        expires: 7,
+        sameSite: "strict",
+      });
+
+      dispatch(setCredentials(response.data));
+
+      const socket = connectSocket(response.data.token);
+
+      socket.on("connect", () => {
+        console.log("✅ Socket Connected:", socket.id);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.log("❌ Socket Error:", err.message);
+      });
+
+      toast.success(response.message || "Welcome back!");
 
       reset();
       setAvatarFile(null);
       setAvatarPreview(null);
 
-      router.push("/login");
+      router.push("/chat/home");
     } catch (error: unknown) {
       const err = error as { data?: { message?: string } };
       toast.error(err?.data?.message || "Registration failed");
@@ -101,21 +127,36 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Avatar Upload */}
           <div className="flex flex-col items-center justify-center space-y-2 pb-2">
-            <div 
+            <div
               onClick={() => document.getElementById("avatar-input")?.click()}
               className="group relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-50 transition-all hover:border-blue-400 hover:bg-slate-100"
             >
               {avatarPreview ? (
-                <img 
-                  src={avatarPreview} 
-                  alt="Avatar preview" 
-                  className="h-full w-full object-cover" 
+                <img
+                  src={avatarPreview}
+                  alt="Avatar preview"
+                  className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-500">
-                  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <svg
+                    className="h-8 w-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
                   </svg>
                   <span className="text-[10px] font-medium mt-1">Upload</span>
                 </div>
@@ -123,18 +164,22 @@ export default function RegisterPage() {
               {/* Overlay on hover when preview exists */}
               {avatarPreview && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                  <span className="text-xs font-semibold text-white">Change</span>
+                  <span className="text-xs font-semibold text-white">
+                    Change
+                  </span>
                 </div>
               )}
             </div>
-            <input 
+            <input
               id="avatar-input"
-              type="file" 
+              type="file"
               accept="image/*"
               className="hidden"
               onChange={handleAvatarChange}
             />
-            <span className="text-xs text-slate-500">Profile Picture (Optional)</span>
+            <span className="text-xs text-slate-500">
+              Profile Picture (Optional)
+            </span>
           </div>
 
           <Input
@@ -142,13 +187,15 @@ export default function RegisterPage() {
             placeholder="e.g. Jane Doe"
             {...register("name")}
             error={errors.name?.message}
+            hasRequired={true}
           />
 
           <Input
             label="Phone Number"
-            placeholder="+1 (555) 000-0000"
+            placeholder="10-digit mobile number"
             {...register("phone")}
             error={errors.phone?.message}
+            hasRequired={true}
           />
 
           <Select
@@ -160,6 +207,7 @@ export default function RegisterPage() {
               { label: "Female", value: "female" },
               { label: "Prefer not to say", value: "other" },
             ]}
+            hasRequired={true}
           />
 
           <div className=" relative">
@@ -169,6 +217,7 @@ export default function RegisterPage() {
               placeholder="Create a strong password"
               {...register("password")}
               error={errors.password?.message}
+              hasRequired={true}
             />
 
             <button
@@ -201,7 +250,7 @@ export default function RegisterPage() {
         <p className="mt-8 text-center text-sm text-slate-600">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href="/auth/login"
             className="font-semibold text-blue-600 transition-colors hover:text-blue-500 hover:underline"
           >
             Log in

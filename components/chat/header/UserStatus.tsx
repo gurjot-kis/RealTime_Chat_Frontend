@@ -26,7 +26,7 @@ const UserStatus = ({ user }: UserStatusProps) => {
       {/* Mobile Back Button */}
       <button
         onClick={handleBack}
-        className="flex items-center justify-center w-9 h-9 -ml-2 text-gray-500 rounded-full md:hidden hover:bg-gray-100 active:scale-95 transition-all duration-200 dark:hover:bg-gray-800 dark:text-gray-400"
+        className="flex items-center justify-center w-9 h-9 -ml-2 text-gray-500 rounded-full md:hidden hover:bg-gray-100 active:scale-95 transition-all duration-200 dark:hover:bg-gray-800 dark:text-gray-400 cursor-pointer"
       >
         <svg
           className="w-5 h-5"

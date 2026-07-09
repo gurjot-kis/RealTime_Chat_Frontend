@@ -9,7 +9,7 @@ import Cookies from "js-cookie";
 
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
   credentials: "include",
 });
 

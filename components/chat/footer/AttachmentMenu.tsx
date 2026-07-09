@@ -80,7 +80,7 @@ const AttachmentMenu = ({
           {/* Document Button */}
           <button
             onClick={() => documentInputRef.current?.click()}
-            className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors w-full text-left group"
+            className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors w-full text-left group cursor-pointer"
           >
             <div className="flex items-center justify-center w-10 h-10 mr-3 text-white bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
               <svg
@@ -112,7 +112,7 @@ const AttachmentMenu = ({
           {/* Photos & Videos Button */}
           <button
             onClick={() => mediaInputRef.current?.click()}
-            className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors w-full text-left group mt-1"
+            className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors w-full text-left group mt-1 cursor-pointer"
           >
             <div className="flex items-center justify-center w-10 h-10 mr-3 text-white bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
               <svg

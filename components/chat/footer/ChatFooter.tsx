@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 
 import AttachmentButton from "./AttachmentButton";
-import EmojiPicker from "./EmojiPicker";
+// import EmojiPicker from "./EmojiPicker";
+import PremiumEmojiPicker from "./PremiumEmojiPicker";
 import MessageInput from "./MessageInput";
 import SendButton from "./SendButton";
 
 import { getSocket } from "@/services/socket";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addMessage } from "@/features/chat/chatSlice";
+import { addMessage, setReplyingToMessage } from "@/features/chat/chatSlice";
 import { Message } from "@/features/chat/chatTypes";
 import {
   chatApi,
@@ -28,53 +29,26 @@ const ChatFooter = () => {
     useUploadMultipleMediaMutation();
 
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingStateRef = useRef({ isTyping: false, conversationId: "" });
 
-  const conversation = useAppSelector(
-    (state) => state.chat.selectedConversation,
-  );
+  const conversation = useAppSelector((state) => state.chat.selectedConversation);
+  const replyingToMessage = useAppSelector((state) => state.chat.replyingToMessage);
 
-  useEffect(() => {
-    typingStateRef.current = {
-      isTyping,
-      conversationId: conversation?._id || "",
-    };
-  }, [isTyping, conversation?._id]);
-
+  // Stop typing indicator on unmount
   useEffect(() => {
     return () => {
-      const { isTyping: wasTyping, conversationId } = typingStateRef.current;
-      if (wasTyping && conversationId) {
-        const socket = getSocket();
-        socket?.emit("stop_typing", { conversationId });
-      }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
       }
-      setIsTyping(false);
     };
-  }, [conversation?._id]);
+  }, []);
 
-  const handleTyping = (newText: string) => {
+  const handleTyping = (value: string) => {
     const socket = getSocket();
     if (!socket || !conversation) return;
 
-    if (newText.trim() === "") {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-      }
-      if (isTyping) {
-        socket.emit("stop_typing", { conversationId: conversation._id });
-        setIsTyping(false);
-      }
-      return;
-    }
-
-    if (!isTyping) {
-      setIsTyping(true);
+    if (value.trim() && !isTyping) {
       socket.emit("typing", { conversationId: conversation._id });
+      setIsTyping(true);
     }
 
     if (typingTimeoutRef.current) {
@@ -110,6 +84,7 @@ const ChatFooter = () => {
       {
         conversationId: conversation._id,
         text,
+        parentMessageId: replyingToMessage?._id,
       },
       (response: { success: boolean; data?: { message: Message } }) => {
         console.log("ACK =>", response);
@@ -124,7 +99,9 @@ const ChatFooter = () => {
               "getConversations",
               undefined,
               (draft) => {
-                const conv = draft.data.find((c) => c._id === conversation._id);
+                const conv = draft.data.find(
+                  (c) => c._id === conversation._id,
+                );
                 if (conv) {
                   conv.lastMessage = {
                     _id: sentMessage._id,
@@ -149,11 +126,12 @@ const ChatFooter = () => {
               },
             ),
           );
-
-          setText("");
         }
       },
     );
+
+    setText("");
+    dispatch(setReplyingToMessage(null));
   };
 
   const handleFileSelect = async (
@@ -186,6 +164,7 @@ const ChatFooter = () => {
               text: "", // Caption could be supported later
               messageType: messageType,
               mediaUrl: mediaUrl,
+              parentMessageId: replyingToMessage?._id,
             },
             (response: { success: boolean; data?: { message: Message } }) => {
               if (response.success && response.data?.message) {
@@ -215,7 +194,6 @@ const ChatFooter = () => {
                           updatedAt: sentMessage.updatedAt,
                         };
 
-                        // Move conversation to the top
                         const index = draft.data.indexOf(conv);
                         if (index > -1) {
                           draft.data.splice(index, 1);
@@ -235,6 +213,7 @@ const ChatFooter = () => {
     } finally {
       // Close the menu whether it succeeded or failed
       setIsAttachmentMenuOpen(false);
+      dispatch(setReplyingToMessage(null));
     }
   };
   const handleSelectEmoji = (emoji: string) => {
@@ -249,7 +228,7 @@ const ChatFooter = () => {
 
     for (let i = 0; i < clipboardItems.length; i++) {
       const item = clipboardItems[i];
-      if (item.kind === "file") {
+      if (item.type.startsWith("image/") || item.type.startsWith("video/")) {
         const file = item.getAsFile();
         if (file) {
           files.push(file);
@@ -259,18 +238,18 @@ const ChatFooter = () => {
 
     if (files.length > 0) {
       e.preventDefault();
-      setPasteFiles(files);
+      setPasteFiles((prev) => [...prev, ...files]);
     }
   };
 
-  const handlePasteSend = async (caption: string) => {
-    if (!conversation || pasteFiles.length === 0) return;
+  const handlePasteSend = async (files: File[], caption: string) => {
+    if (!conversation) return;
 
     try {
       // 1. Prepare files for upload
       const formData = new FormData();
-      for (let i = 0; i < pasteFiles.length; i++) {
-        formData.append("files", pasteFiles[i]);
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
       }
 
       // 2. Upload media
@@ -295,6 +274,7 @@ const ChatFooter = () => {
               text: msgCaption,
               messageType: messageType,
               mediaUrl: mediaUrl,
+              parentMessageId: replyingToMessage?._id,
             },
             (response: { success: boolean; data?: { message: Message } }) => {
               if (response.success && response.data?.message) {
@@ -324,7 +304,6 @@ const ChatFooter = () => {
                           updatedAt: sentMessage.updatedAt,
                         };
 
-                        // Move conversation to top
                         const index = draft.data.indexOf(conv);
                         if (index > -1) {
                           draft.data.splice(index, 1);
@@ -338,51 +317,82 @@ const ChatFooter = () => {
             },
           );
         }
-
-        // Clear files state
-        setPasteFiles([]);
       }
     } catch (error) {
-      console.error("Failed to upload pasted media:", error);
+      console.error("Failed to send pasted media:", error);
+    } finally {
+      setPasteFiles([]);
+      dispatch(setReplyingToMessage(null));
     }
   };
 
   return (
-    <footer className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 sm:py-4 bg-white/90 backdrop-blur-md dark:bg-gray-900/90 border-t border-slate-100 dark:border-gray-800/60 w-full shrink-0 z-20 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)] dark:shadow-none transition-colors duration-200">
-      <AttachmentMenu
-        isOpen={isAttachmentMenuOpen}
-        onClose={() => setIsAttachmentMenuOpen(false)}
-        onFileSelect={handleFileSelect}
-      />
-      <EmojiPicker onSelectEmoji={handleSelectEmoji} disabled={isUploading} />
-      <AttachmentButton
-        isOpen={isAttachmentMenuOpen}
-        onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
-        disabled={isUploading}
-      />
-      <MessageInput
-        value={text}
-        onChange={(e) => {
-          const newText = e.target.value;
-          setText(newText);
-          handleTyping(newText);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-          }
-        }}
-        onPaste={handlePaste}
-        disabled={isUploading}
-      />
-      <SendButton disabled={!text.trim() || isUploading} onClick={handleSend} />
+    <footer className="relative flex flex-col gap-2 px-3 sm:px-6 py-3 sm:py-4 bg-white/90 backdrop-blur-md dark:bg-gray-900/90 border-t border-slate-100 dark:border-gray-800/60 w-full shrink-0 z-20 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)] dark:shadow-none transition-colors duration-200">
+      {/* Replying Preview Container */}
+      {replyingToMessage && (
+        <div className="flex items-center justify-between px-3 py-2.5 bg-slate-50 dark:bg-white/[0.03] border-l-4 border-emerald-500 rounded-lg animate-fadeIn select-none mb-1">
+          <div className="flex flex-col text-xs text-left gap-0.5 min-w-0">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+              Replying to {replyingToMessage.sender.name}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400 truncate max-w-[200px] sm:max-w-[400px]">
+              {replyingToMessage.messageType === "image" ? "📷 Photo" :
+               replyingToMessage.messageType === "video" ? "🎥 Video" :
+               replyingToMessage.messageType === "file" ? "📄 File" :
+               replyingToMessage.text}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => dispatch(setReplyingToMessage(null))}
+            className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer flex items-center justify-center"
+            aria-label="Cancel reply"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Input Controls Row */}
+      <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+        <AttachmentMenu
+          isOpen={isAttachmentMenuOpen}
+          onClose={() => setIsAttachmentMenuOpen(false)}
+          onFileSelect={handleFileSelect}
+        />
+        {/* <EmojiPicker onSelectEmoji={handleSelectEmoji} disabled={isUploading} /> */}
+        <PremiumEmojiPicker onSelectEmoji={handleSelectEmoji} disabled={isUploading} />
+        <AttachmentButton
+          isOpen={isAttachmentMenuOpen}
+          onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
+          disabled={isUploading}
+        />
+        <MessageInput
+          value={text}
+          onChange={(e) => {
+            const newText = e.target.value;
+            setText(newText);
+            handleTyping(newText);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          onPaste={handlePaste}
+          disabled={isUploading}
+        />
+        <SendButton disabled={!text.trim() || isUploading} onClick={handleSend} />
+      </div>
 
       {pasteFiles.length > 0 && (
         <PastePreviewModal
           files={pasteFiles}
           onClose={() => setPasteFiles([])}
-          onSend={handlePasteSend}
+          onSend={(caption) => handlePasteSend(pasteFiles, caption)}
           isUploading={isUploading}
         />
       )}

@@ -1,16 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { Conversation } from "@/features/chat/chatTypes";
 import {
   useLazyGetMessagesQuery,
+  useDeleteConversationMutation,
   chatApi,
 } from "@/features/chat/chatApi";
 import {
   setMessages,
   setSelectedConversation,
+  clearMessages,
 } from "@/features/chat/chatSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import UserAvatar from "../shared/UserAvatar";
+import DeleteConfirmModal from "./DeleteConfirmModal";
 
 interface Props {
   conversation: Conversation;
@@ -19,9 +23,12 @@ interface Props {
 export default function ConversationItem({ conversation }: Props) {
   const dispatch = useAppDispatch();
   const onlineUsers = useAppSelector((state) => state.chat.onlineUsers);
-  const isOnline = onlineUsers.includes(conversation.user._id);
+  const isOnline = conversation.user?._id ? onlineUsers.includes(conversation.user._id) : false;
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [getMessages] = useLazyGetMessagesQuery();
+  const [deleteConversation, { isLoading: isDeleting }] = useDeleteConversationMutation();
 
   const handleSelectConversation = async () => {
     try {
@@ -58,6 +65,32 @@ export default function ConversationItem({ conversation }: Props) {
       );
     } catch (error) {
       console.error("Failed to load messages", error);
+    }
+  };
+
+  const handleDeleteClick = async () => {
+    const selectedId = selectedConversation?._id ? String(selectedConversation._id) : "";
+    const currentId = conversation?._id ? String(conversation._id) : "";
+    const isCurrentlyActive = isActive || (selectedId && selectedId === currentId);
+
+    // 1. Always check and clear matching ID in localStorage first
+    const savedActiveId = localStorage.getItem("activeConversationId");
+    if (savedActiveId && String(savedActiveId) === currentId) {
+      localStorage.removeItem("activeConversationId");
+    }
+
+    // 2. Clear selection in Redux second
+    if (isCurrentlyActive) {
+      dispatch(setSelectedConversation(null));
+      dispatch(clearMessages());
+    }
+    
+    setIsDeleteModalOpen(false);
+
+    try {
+      await deleteConversation(conversation._id).unwrap();
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
     }
   };
 
@@ -137,10 +170,10 @@ export default function ConversationItem({ conversation }: Props) {
       />
 
       {/* Avatar with online ring */}
- <div className="relative shrink-0">
+      <div className="relative shrink-0">
         <UserAvatar
-          name={conversation.user.name}
-          imageUrl={conversation.user.avatar}
+          name={conversation.user?.name || conversation.groupName || "Chat"}
+          imageUrl={conversation.user?.avatar || conversation.groupImage || undefined}
           isOnline={isOnline}
           size="lg"
         />
@@ -155,7 +188,7 @@ export default function ConversationItem({ conversation }: Props) {
                 : "font-semibold text-gray-800 dark:text-gray-100"
             }`}
           >
-            {conversation.user.name}
+            {conversation.user?.name || conversation.groupName || "Chat"}
           </h3>
           <span
             className={`shrink-0 text-[11px] tabular-nums ${
@@ -180,14 +213,46 @@ export default function ConversationItem({ conversation }: Props) {
             <span className="truncate">{text}</span>
           </p>
 
-          {hasUnread ? (
-            <span className="flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-[10.5px] font-bold rounded-full min-w-[19px] h-[19px] px-1.5 shadow-sm shadow-emerald-500/30">
-              {conversation.unreadCount! > 99 ? "99+" : conversation.unreadCount}
-            </span>
-          ) : (
-            <span className="w-[19px] h-[19px]" aria-hidden="true" />
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Soft Delete Trigger Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDeleteModalOpen(true);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-200 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-all duration-150 cursor-pointer flex items-center justify-center mr-1"
+              title="Delete conversation"
+              disabled={isDeleting}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+
+            {hasUnread ? (
+              <span className="flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-red-500 text-white text-[10.5px] font-bold rounded-full min-w-[19px] h-[19px] px-1.5 shadow-sm shadow-red-500/20">
+                {conversation.unreadCount! > 99 ? "99+" : conversation.unreadCount}
+              </span>
+            ) : (
+              <span className="w-[19px] h-[19px] group-hover:hidden" aria-hidden="true" />
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+      >
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteClick}
+          title={conversation.user?.name || conversation.groupName || "Chat"}
+          isDeleting={isDeleting}
+        />
       </div>
     </div>
   );

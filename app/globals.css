@@ -10,7 +10,6 @@ body {
   background-size: 24px 24px;
 }
 
-/* Dark mode background pattern matching both system media queries and active class overrides */
 @media (prefers-color-scheme: dark) {
   .bg-whatsapp-pattern {
     background-image: radial-gradient(#1c221e 1.2px, transparent 1.2px);
@@ -21,6 +20,7 @@ body {
   background-image: radial-gradient(#1c221e 1.2px, transparent 1.2px);
   background-size: 24px 24px;
 }
+
 
 /* Hardware-accelerated smooth scroll container */
 .smooth-scroll-container {
@@ -140,4 +140,24 @@ body {
 }
 .dark .premium-textarea-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #065f46;
+}
+
+/* Highlight Flash Animation for Replied Messages */
+@keyframes highlightFlash {
+  0% {
+    box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.6);
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+  30% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.4);
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0px rgba(16, 185, 129, 0);
+    background-color: transparent;
+  }
+}
+
+.highlight-flash {
+  animation: highlightFlash 1.5s ease-in-out;
 }

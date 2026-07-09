@@ -155,6 +155,13 @@ const ChatBody = () => {
 
   const conversationId = selectedConversation?._id;
 
+  // Track if there are unread messages from the sidebar list query state
+  const conversations = useAppSelector(
+    (state) => chatApi.endpoints.getConversations.select()(state).data?.data
+  );
+  const currentConvInList = conversations?.find((c) => c._id === conversationId);
+  const hasUnreads = (currentConvInList?.unreadCount ?? 0) > 0 || unreadCount > 0;
+
   const startClearUnreadsTimer = () => {
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
@@ -167,13 +174,23 @@ const ChatBody = () => {
   };
 
   const handleMarkAsRead = () => {
-    if (unreadCount > 0 && conversationId && !clearTimerRef.current) {
+    if (!conversationId) return;
+
+    if (hasUnreads) {
       const socket = getSocket();
       if (socket) {
         socket.emit("mark_as_read", { conversationId });
       }
-      startClearUnreadsTimer();
+      dispatch(
+        chatApi.util.updateQueryData("getConversations", undefined, (draft) => {
+          const conv = draft.data.find((c) => c._id === conversationId);
+          if (conv) {
+            conv.unreadCount = 0;
+          }
+        })
+      );
     }
+    startClearUnreadsTimer();
   };
 
   // Monitor tab window focus
@@ -223,7 +240,7 @@ const ChatBody = () => {
         handleMarkAsRead();
       }
     }
-  }, [conversationId, isFocused, unreadCount]);
+  }, [conversationId, isFocused, unreadCount, hasUnreads]);
 
   // Listen to new incoming messages to count unreads if out of view or blurred
   useEffect(() => {
@@ -264,6 +281,15 @@ const ChatBody = () => {
           if (socket) {
             socket.emit("mark_as_read", { conversationId });
           }
+          // Clear sidebar unread badge
+          dispatch(
+            chatApi.util.updateQueryData("getConversations", undefined, (draft) => {
+              const conv = draft.data.find((c) => c._id === conversationId);
+              if (conv) {
+                conv.unreadCount = 0;
+              }
+            })
+          );
         } else {
           // Cancel active timer since new unread arrived
           if (clearTimerRef.current) {
@@ -351,6 +377,7 @@ const ChatBody = () => {
         messages={messages}
         conversationId={conversationId}
         unreadCount={unreadCount}
+        hasUnreads={hasUnreads}
         onMarkAsRead={handleMarkAsRead}
         scrollRef={scrollRef}
         loggedInUserId={loggedInUser?._id}

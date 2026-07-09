@@ -8,6 +8,7 @@ interface ChatState {
   onlineUsers: string[]; // list of user IDs
   hasMore: boolean;
   currentPage: number;
+  replyingToMessage: Message | null;
 }
 
 const initialState: ChatState = {
@@ -17,6 +18,7 @@ const initialState: ChatState = {
   onlineUsers: [],
   hasMore: false,
   currentPage: 1,
+  replyingToMessage: null,
 };
 
 const chatSlice = createSlice({
@@ -28,6 +30,7 @@ const chatSlice = createSlice({
       action: PayloadAction<Conversation | null>,
     ) => {
       state.selectedConversation = action.payload;
+      state.replyingToMessage = null;
     },
 
     clearSelectedConversation: (state) => {
@@ -136,6 +139,13 @@ const chatSlice = createSlice({
       state.onlineUsers = state.onlineUsers.filter((id) => id !== action.payload);
     },
 
+    setReplyingToMessage: (
+      state,
+      action: PayloadAction<Message | null>,
+    ) => {
+      state.replyingToMessage = action.payload;
+    },
+
     resetChatState: (state) => {
       state.selectedConversation = null;
       state.messages = [];
@@ -143,6 +153,7 @@ const chatSlice = createSlice({
       state.onlineUsers = [];
       state.hasMore = false;
       state.currentPage = 1;
+      state.replyingToMessage = null;
     },
   },
 });
@@ -160,6 +171,7 @@ export const {
   setOnlineUsers,
   addUserOnline,
   removeUserOffline,
+  setReplyingToMessage,
   resetChatState,
 } = chatSlice.actions;
 
